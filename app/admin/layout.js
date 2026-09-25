@@ -16,6 +16,7 @@ const ITEMS = [
 ];
 
 const SUPER_ITEMS = [
+  { href: "/admin/winning-tickets", label: "Winning Tickets", icon: "trophy", perm: P.WINNING_TICKETS_REVIEW },
   { href: "/admin/plans", label: "Subscription Plans", icon: "layers", perm: P.PLANS_MANAGE },
   { href: "/admin/administrators", label: "Administrators", icon: "userCog", perm: P.ADMINS_MANAGE },
   { href: "/admin/roles", label: "Roles & Permissions", icon: "key", perm: P.ROLES_MANAGE },

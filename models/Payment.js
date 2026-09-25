@@ -23,7 +23,13 @@ const PaymentSchema = new Schema(
     planSnapshot: { type: PlanSnapshotSchema, required: true },
     reference: { type: String, required: true, unique: true },
     // Amount in major units; Paystack is charged amount * 100 (kobo/pesewas/cents).
+    // This is the amount actually charged, i.e. after any winning-ticket discount.
     amount: { type: Number, required: true, min: 0 },
+    // Winning-ticket reward: plan price before discount, % applied, and the
+    // "YYYY-MM" month whose uploads earned it (one successful payment per month).
+    originalAmount: { type: Number, default: null },
+    discountPercent: { type: Number, min: 0, max: 100, default: 0 },
+    rewardMonth: { type: String, default: null },
     currency: { type: String, required: true, default: "NGN" },
     status: { type: String, enum: PAYMENT_STATUS_VALUES, default: PAYMENT_STATUS.PENDING },
     intent: { type: String, enum: SUBSCRIPTION_TYPE_VALUES, default: "NEW" },
@@ -51,5 +57,6 @@ PaymentSchema.index({ user: 1, createdAt: -1 });
 PaymentSchema.index({ status: 1, createdAt: -1 });
 PaymentSchema.index({ user: 1, plan: 1, status: 1, createdAt: -1 });
 PaymentSchema.index({ paidAt: -1 });
+PaymentSchema.index({ user: 1, rewardMonth: 1, status: 1 }, { partialFilterExpression: { rewardMonth: { $type: "string" } } });
 
 export default mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);

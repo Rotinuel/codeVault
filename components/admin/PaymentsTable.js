@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useListQuery, useApi } from "@/lib/client/hooks";
+import { apiFetch } from "@/lib/client/api";
+import { Button } from "@/components/ui/Button";
 import { DataTable, FilterSelect, Pagination, SearchInput, Toolbar } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/Primitives";
 import { formatCurrency, formatDateTime, titleCase } from "@/lib/utils";
@@ -10,6 +14,21 @@ export function PaymentsTable() {
   const list = useListQuery("/api/admin/payments", { sort: "createdAt" });
   const plans = useApi("/api/admin/plans");
   const { data, params } = list;
+  const [checking, setChecking] = useState(null);
+
+  async function recheck(p) {
+    setChecking(p.id);
+    try {
+      const res = await apiFetch(`/api/admin/payments/${p.id}/verify`, { method: "POST" });
+      if (res.status === "SUCCESS") toast.success(`${p.reference}: payment confirmed, subscription active`);
+      else toast.message(`${p.reference}: still ${String(res.status).toLowerCase()}`, { description: res.payment?.failureReason || undefined });
+      list.reload();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setChecking(null);
+    }
+  }
 
   const columns = [
     { key: "reference", label: "Reference", render: (p) => <span className="font-mono text-xs">{p.reference}</span> },
@@ -28,9 +47,41 @@ export function PaymentsTable() {
     },
     { key: "planName", label: "Plan" },
     { key: "type", label: "Type", render: (p) => titleCase(p.type || "") },
-    { key: "amount", label: "Amount", sortable: true, render: (p) => <span className="tabular-nums font-medium">{formatCurrency(p.amount, p.currency)}</span> },
+    {
+      key: "amount",
+      label: "Amount",
+      sortable: true,
+      render: (p) => (
+        <span className="tabular-nums font-medium">
+          {formatCurrency(p.amount, p.currency)}
+          {p.discountPercent > 0 && (
+            <span className="block text-xs font-normal text-amber-700" title={`List price ${formatCurrency(p.originalAmount, p.currency)}`}>
+              −{p.discountPercent}% ticket reward
+            </span>
+          )}
+        </span>
+      ),
+    },
     { key: "paymentMethod", label: "Method", render: (p) => (p.paymentMethod ? titleCase(p.paymentMethod) : p.gateway === "free" ? "Free" : "—") },
-    { key: "status", label: "Status", render: (p) => <StatusBadge status={p.status} /> },
+    {
+      key: "status",
+      label: "Status",
+      render: (p) => (
+        <div className="max-w-[16rem]">
+          <StatusBadge status={p.status} />
+          {p.failureReason && p.status !== "SUCCESS" ? (
+            <p className="mt-1 text-xs leading-snug text-rose-600" title={p.failureReason}>
+              {p.failureReason}
+            </p>
+          ) : null}
+          {p.gateway === "paystack" && ["FAILED", "PENDING", "ABANDONED", "CANCELLED"].includes(p.status) ? (
+            <Button size="xs" variant="secondary" className="mt-2 whitespace-nowrap" loading={checking === p.id} onClick={() => recheck(p)}>
+              Re-check with Paystack
+            </Button>
+          ) : null}
+        </div>
+      ),
+    },
     { key: "createdAt", label: "Date", sortable: true, render: (p) => <span className="whitespace-nowrap text-slate-600">{formatDateTime(p.paidAt || p.createdAt)}</span> },
   ];
 

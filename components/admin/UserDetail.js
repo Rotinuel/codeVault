@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Ban, CalendarPlus, Crown, KeyRound, UserCheck, UserX, CircleX } from "lucide-react";
+import { ArrowLeft, Ban, CalendarPlus, Crown, KeyRound, MailCheck, UserCheck, UserX, CircleX } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/client/hooks";
 import { apiFetch } from "@/lib/client/api";
@@ -95,6 +95,7 @@ export function UserDetail({ id, isSuper, canManage, canManageSubscriptions }) {
   const [subAction, setSubAction] = useState(null);
   const [role, setRole] = useState("");
   const [savingRole, setSavingRole] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   if (error) return <Card><ErrorState description={error.message} onRetry={reload} /></Card>;
   if (!data) {
@@ -109,6 +110,19 @@ export function UserDetail({ id, isSuper, canManage, canManageSubscriptions }) {
   const u = data.user;
   const active = data.subscriptions.find((s) => s.status === "ACTIVE" && new Date(s.endDate) > new Date() && new Date(s.startDate) <= new Date());
   const manageable = canManage && data.canManage;
+
+  async function markVerified() {
+    setVerifying(true);
+    try {
+      await apiFetch(`/api/admin/users/${id}`, { method: "PATCH", body: { emailVerified: true } });
+      toast.success("Email marked as verified");
+      reload();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   async function saveRole() {
     if (!role || role === u.role) return;
@@ -139,6 +153,7 @@ export function UserDetail({ id, isSuper, canManage, canManageSubscriptions }) {
                 <h1 className="text-xl font-semibold text-slate-900">{u.name}</h1>
                 <StatusBadge status={u.status} />
                 <Badge tone={u.role === "USER" ? "gray" : "violet"}>{titleCase(u.role)}</Badge>
+                {!u.emailVerified && <Badge tone="amber">Email not verified</Badge>}
               </div>
               <p className="text-sm text-slate-500">
                 {u.email} · {u.phone || "no phone"}
@@ -147,6 +162,12 @@ export function UserDetail({ id, isSuper, canManage, canManageSubscriptions }) {
                 Joined {formatDate(u.createdAt)} · last login {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "never"}
               </p>
               {u.statusReason && <p className="mt-1 text-xs text-amber-700">Reason: {u.statusReason}</p>}
+              {u.termsAcceptedAt && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Accepted terms v{u.termsVersion} on {formatDate(u.termsAcceptedAt)}
+                  {u.emailVerifiedAt ? ` · email verified ${formatDate(u.emailVerifiedAt)}` : ""}
+                </p>
+              )}
             </div>
           </div>
           {manageable && (
@@ -169,6 +190,11 @@ export function UserDetail({ id, isSuper, canManage, canManageSubscriptions }) {
               <Button variant="secondary" size="sm" onClick={() => setResetUser(u)}>
                 <KeyRound className="size-4" /> Reset link
               </Button>
+              {!u.emailVerified && (
+                <Button variant="secondary" size="sm" loading={verifying} onClick={markVerified}>
+                  <MailCheck className="size-4" /> Mark email verified
+                </Button>
+              )}
             </div>
           )}
         </div>

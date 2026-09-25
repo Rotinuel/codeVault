@@ -9,12 +9,14 @@ import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "#how-it-works", label: "How it works" },
+  { href: "#winners", label: "Winners" },
   { href: "#plans", label: "Plans" },
   { href: "#features", label: "Features" },
   { href: "#faq", label: "FAQ" },
 ];
 
-export function LandingNav({ name, logoUrl, signedIn, dashboardHref }) {
+export function LandingNav({ name, logoUrl, signedIn, dashboardHref, showWinners = false }) {
+  const links = LINKS.filter((l) => showWinners || l.href !== "#winners");
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -30,7 +32,7 @@ export function LandingNav({ name, logoUrl, signedIn, dashboardHref }) {
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         <Brand name={name} logoUrl={logoUrl} dark />
         <nav className="ml-6 hidden items-center gap-6 md:flex" aria-label="Primary">
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <a key={l.href} href={l.href} className="text-sm font-medium text-slate-300 hover:text-white">
               {l.label}
             </a>
@@ -59,7 +61,7 @@ export function LandingNav({ name, logoUrl, signedIn, dashboardHref }) {
       {open && (
         <div className="border-t border-white/5 px-4 pb-5 md:hidden">
           <nav className="flex flex-col py-2" aria-label="Mobile">
-            {LINKS.map((l) => (
+            {links.map((l) => (
               <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-2 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5">
                 {l.label}
               </a>

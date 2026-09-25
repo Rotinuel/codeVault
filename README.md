@@ -13,6 +13,8 @@ A production-ready, subscription-based platform where clients pay (via **Paystac
 3. [How access control works](#how-access-control-works)
 4. [Bet code scheduling](#bet-code-scheduling)
 5. [Payments (Paystack)](#payments-paystack)
+   - [Sign-up: terms & email verification](#sign-up-terms--email-verification)
+   - [Winning tickets & discounts](#winning-tickets--discounts)
 6. [WhatsApp notifications](#whatsapp-notifications)
 7. [Background jobs & cron](#background-jobs--cron)
 8. [Roles & permissions](#roles--permissions)
@@ -59,6 +61,8 @@ The seed is idempotent. Plans and categories are only created if their slug does
 | `PAYSTACK_SECRET_KEY` | ✅ | `sk_test_…` / `sk_live_…`. Server-only. |
 | `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | | Only needed if you switch to Paystack Inline; the default redirect checkout doesn't use it. |
 | `PAYSTACK_API_URL` | | Override the Paystack base URL (defaults to `https://api.paystack.co`). |
+| `RESEND_API_KEY` | ✅ in prod | Resend API key for verification emails. Without it, emails are logged to the console in development. |
+| `EMAIL_FROM` | ✅ in prod | Sender, e.g. `CodeVault <no-reply@yourdomain.com>`, on a domain verified in Resend. |
 | `WHATSAPP_PROVIDER` | | `meta` (default) or `console` (log only). |
 | `WHATSAPP_API_URL` | | e.g. `https://graph.facebook.com/v22.0` |
 | `WHATSAPP_ACCESS_TOKEN` | | Meta permanent/system-user token. |
@@ -145,6 +149,25 @@ Requests without a valid `x-paystack-signature` (HMAC-SHA512 of the raw body) ar
 Test cards: https://paystack.com/docs/payments/test-payments
 
 ---
+
+## Sign-up: terms & email verification
+
+- **Terms**: the sign-up page opens the terms automatically. "I agree" is only enabled after the reader scrolls to the end, and **Create account** stays disabled until they accept. The server still requires `acceptTerms: true`, and stores `termsAcceptedAt` and `termsVersion` (`TERMS_VERSION` in `lib/constants.js`; bump it when the terms change). The text lives in `components/legal/TermsContent.js` and is shared with `/terms`.
+- **Email verification**: after sign-up the client lands on `/verify-email`. The email (sent with Resend) contains a **6-digit code** (valid 30 min, 5 attempts) and a **one-tap link** (valid 24 h, works in any browser). Codes are stored as HMAC hashes and links as SHA-256 hashes. Resend has a 60-second cooldown and is rate-limited.
+- **Until verified** a client can't open the dashboard or call any API except verify/resend/logout (`requireAuth` returns `403 EMAIL_NOT_VERIFIED`, and the browser is sent to `/verify-email`). The WhatsApp/in-app welcome message is sent after verification.
+- **Existing accounts are not affected**: only accounts created with `emailVerified: false` need to verify. Staff never do. A Super Admin/Admin with `users.manage` can click **Mark email verified** on a client's page if their email never arrives.
+- If someone signs up with an address and never verifies it, a new sign-up with that address replaces the abandoned account, so nobody can squat on someone else's email.
+- **Setup**: create a Resend account, verify your sending domain (DNS records), create an API key, then set `RESEND_API_KEY` and `EMAIL_FROM`. Until the domain is verified you can only send to your own Resend login email from `onboarding@resend.dev`.
+
+## Winning tickets & discounts
+
+Clients upload photos of winning betting slips from **Dashboard → Winning Tickets**. The **Super Admin** reviews them at **Admin → Winning Tickets** (permission `winningTickets.review`, which can't be delegated to Admins).
+
+- **Upload**: the browser re-encodes the photo to JPEG (max 1600 px, under 2 MB), which also strips EXIF/GPS data. The server checks the file's magic bytes, rejects duplicate images (SHA-256) and duplicate bookmaker + ticket IDs, and rate-limits uploads to 10 per client per day. Images are stored in MongoDB (`WinningTicket.image.data`, never returned in list queries).
+- **Review**: approve, reject with a reason (sent to the client in-app and on WhatsApp), or revoke an approval whose discount hasn't been used yet. Each action is audit-logged.
+- **Monthly reward**: the Super Admin sets a **monthly target** (approved uploads) and a **discount %** (max 90%) on the same admin page. If a client's approved uploads in a calendar month (by upload date, platform timezone) reach the target, they get the discount on **one** subscription payment in the **following** month. Counts reset every month. The discount is computed on the server at checkout; `Payment.rewardMonth` records which month's target it used, and once a payment with that `rewardMonth` succeeds the reward is spent (failed/abandoned checkouts don't use it up).
+- **Price shown vs charged**: clients see the discounted price on the plan cards; Paystack is charged exactly that amount, and `Payment.originalAmount` / `discountPercent` record the reward. Upgrade credit uses the plan's list price so a discount never inflates bonus days.
+- **Homepage carousel**: approved tickets appear anonymously in the "Subscriber wins" carousel only if the client ticked consent **and** the Super Admin chose "Show on homepage". No names or IDs are sent to the browser; the image URL is public only for those tickets. The section hides itself when there's nothing to show, and can be switched off in the reward settings.
 
 ## WhatsApp notifications
 

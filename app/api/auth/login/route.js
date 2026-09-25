@@ -34,6 +34,9 @@ export const POST = withApi(async (request) => {
   await createSession(user);
 
   const url = new URL(request.url);
+  if (user.emailVerified === false) {
+    return ok({ user: publicUser(user), redirectTo: "/verify-email", needsVerification: true }, { message: "Please verify your email to continue" });
+  }
   const fallback = STAFF_ROLES.includes(user.role) ? "/admin" : "/dashboard";
   return ok({ user: publicUser(user), redirectTo: safeNext(url.searchParams.get("next"), fallback) }, { message: "Welcome back" });
 });

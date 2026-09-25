@@ -14,6 +14,7 @@ export { default as MessageOutbox } from "./MessageOutbox.js";
 export { default as Favorite } from "./Favorite.js";
 export { default as BetCodeView } from "./BetCodeView.js";
 export { default as Broadcast } from "./Broadcast.js";
+export { default as WinningTicket } from "./WinningTicket.js";
 
 import User from "./User.js";
 import SubscriptionPlan from "./SubscriptionPlan.js";
@@ -29,6 +30,7 @@ import MessageOutbox from "./MessageOutbox.js";
 import Favorite from "./Favorite.js";
 import BetCodeView from "./BetCodeView.js";
 import Broadcast from "./Broadcast.js";
+import WinningTicket from "./WinningTicket.js";
 
 /** Every model, e.g. for creating indexes from scripts. */
-export const models = [User, SubscriptionPlan, Subscription, Payment, BetCode, Category, Notification, AuditLog, Setting, RateLimit, MessageOutbox, Favorite, BetCodeView, Broadcast];
+export const models = [User, SubscriptionPlan, Subscription, Payment, BetCode, Category, Notification, AuditLog, Setting, RateLimit, MessageOutbox, Favorite, BetCodeView, Broadcast, WinningTicket];

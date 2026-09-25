@@ -8,11 +8,12 @@ const NOTICES = {
   banned: { tone: "warn", text: "This account has been banned." },
   expired: { tone: "warn", text: "Your session expired. Please sign in again." },
   reset: { tone: "ok", text: "Password updated. Sign in with your new password." },
+  verified: { tone: "ok", text: "Email verified! Sign in to choose your plan." },
 };
 
 export default async function LoginPage({ searchParams }) {
   const sp = await searchParams;
-  const notice = sp?.blocked ? NOTICES[sp.blocked] : sp?.expired ? NOTICES.expired : sp?.reset ? NOTICES.reset : null;
+  const notice = sp?.blocked ? NOTICES[sp.blocked] : sp?.expired ? NOTICES.expired : sp?.reset ? NOTICES.reset : sp?.verified ? NOTICES.verified : null;
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>

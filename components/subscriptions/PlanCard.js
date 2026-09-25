@@ -11,8 +11,9 @@ function durationLabel(days) {
 }
 
 /** Presentational plan card; the CTA is passed in so it works in server and client trees. */
-export function PlanCard({ plan, action, highlight = false, current = false, dark = false }) {
+export function PlanCard({ plan, action, highlight = false, current = false, dark = false, discountPercent = 0 }) {
   const featured = highlight || plan.isFeatured;
+  const discounted = discountPercent > 0 && plan.price > 0 ? Math.round(plan.price * (100 - discountPercent)) / 100 : null;
   return (
     <div
       className={cn(
@@ -41,12 +42,20 @@ export function PlanCard({ plan, action, highlight = false, current = false, dar
         <h3 className={cn("text-lg font-semibold", dark ? "text-white" : "text-slate-900")}>{plan.name}</h3>
       </div>
       {plan.description && <p className={cn("mt-1.5 text-sm", dark ? "text-slate-400" : "text-slate-500")}>{plan.description}</p>}
-      <p className="mt-5 flex items-baseline gap-1">
+      <p className="mt-5 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+        {discounted !== null && (
+          <span className={cn("text-base tabular-nums line-through", dark ? "text-slate-500" : "text-slate-400")}>{formatCurrency(plan.price, plan.currency)}</span>
+        )}
         <span className={cn("text-3xl font-bold tracking-tight tabular-nums", dark ? "text-white" : "text-slate-900")}>
-          {plan.price === 0 ? "Free" : formatCurrency(plan.price, plan.currency)}
+          {plan.price === 0 ? "Free" : formatCurrency(discounted ?? plan.price, plan.currency)}
         </span>
         <span className={cn("text-sm", dark ? "text-slate-400" : "text-slate-500")}>/ {durationLabel(plan.durationDays)}</span>
       </p>
+      {discounted !== null && (
+        <p className="mt-1.5 inline-flex w-fit rounded-full bg-gold-400/20 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-gold-400/50">
+          {discountPercent}% winning-ticket discount
+        </p>
+      )}
       <p className={cn("mt-1 text-xs", dark ? "text-slate-500" : "text-slate-400")}>
         Access level {plan.accessLevel} · {plan.historyDays ? `${plan.historyDays}-day history` : "full history"}
       </p>

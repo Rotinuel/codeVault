@@ -11,6 +11,7 @@ import {
   Lock,
   ShieldCheck,
   Ticket,
+  Trophy,
   UserPlus,
   Wallet,
 } from "lucide-react";
@@ -24,6 +25,8 @@ import { Reveal } from "@/components/landing/Reveal";
 import { PlanCard } from "@/components/subscriptions/PlanCard";
 import { Brand } from "@/components/layout/Brand";
 import { ButtonLink } from "@/components/ui/Button";
+import { WinnersCarousel } from "@/components/landing/WinnersCarousel";
+import { getShowcaseTickets } from "@/lib/services/winning-tickets";
 
 const STEPS = [
   { icon: UserPlus, title: "Create account", text: "Sign up with your email and WhatsApp number in under a minute." },
@@ -63,6 +66,10 @@ const FAQ = [
     a: "Payments are processed by Paystack. We never see your card details, and every transaction is verified directly with Paystack before your plan is activated.",
   },
   {
+    q: "Do I get anything for sharing a winning ticket?",
+    a: "Yes. Upload photos of your winning tickets from your dashboard. Our team verifies each one, and if enough of your uploads in a month are approved, you get a discount on one subscription payment the following month. You choose whether a ticket may appear (without your name) on this page.",
+  },
+  {
     q: "Are outcomes guaranteed?",
     a: "No. Bet codes are informational picks and no outcome is ever guaranteed. Please gamble responsibly, only stake what you can afford to lose, and you must be 18 or older.",
   },
@@ -70,20 +77,22 @@ const FAQ = [
 
 export default async function LandingPage() {
   await connectDB().catch(() => null);
-  const [settings, user, plans] = await Promise.all([
+  const [settings, user, plans, winners] = await Promise.all([
     getSettings(),
     getCurrentUser().catch(() => null),
     SubscriptionPlan.find({ isActive: true })
       .sort({ sortOrder: 1, accessLevel: 1, price: 1 })
       .lean()
       .catch(() => []),
+    getShowcaseTickets(16),
   ]);
+  const rewards = settings.ticketRewards?.enabled ? settings.ticketRewards : null;
   const planList = plans.map(serializePlan);
   const dashboardHref = user && isStaff(user) ? "/admin" : "/dashboard";
 
   return (
     <div className="bg-white">
-      <LandingNav name={settings.platformName} logoUrl={settings.logoUrl} signedIn={Boolean(user)} dashboardHref={dashboardHref} />
+      <LandingNav name={settings.platformName} logoUrl={settings.logoUrl} signedIn={Boolean(user)} dashboardHref={dashboardHref} showWinners={winners.length > 0} />
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-ink-950 pb-24 pt-32 text-white sm:pt-40">
@@ -148,6 +157,26 @@ export default async function LandingPage() {
           </Reveal>
         </div>
       </section>
+
+      {/* Winners carousel */}
+      {winners.length > 0 && (
+        <section id="winners" className="scroll-mt-16 bg-slate-50 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <Reveal className="mx-auto mb-10 flex max-w-3xl flex-col items-center text-center">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-brand-700">
+                <Trophy className="size-4" aria-hidden="true" /> Subscriber wins
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Real tickets, verified by our team</h2>
+              <p className="mt-4 text-slate-500">
+                Winning tickets shared by subscribers and checked before they appear here. Names are never shown.
+                {rewards ? ` Share ${rewards.monthlyTarget} verified win${rewards.monthlyTarget === 1 ? "" : "s"} in a month and get ${rewards.percent}% off your next subscription.` : ""}
+              </p>
+            </Reveal>
+            <WinnersCarousel tickets={winners} />
+            <p className="mt-6 text-center text-xs text-slate-400">Past results don&apos;t guarantee future outcomes. 18+ · Gamble responsibly.</p>
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       <section id="how-it-works" className="scroll-mt-16 py-24">

@@ -8,6 +8,7 @@ const NAV = [
   { href: "/dashboard/betcodes", label: "Bet Codes", icon: "ticket" },
   { href: "/dashboard/subscription", label: "Subscription", icon: "crown" },
   { href: "/dashboard/payments", label: "Payments", icon: "receipt" },
+  { href: "/dashboard/winning-tickets", label: "Winning Tickets", icon: "trophy" },
   { href: "/dashboard/notifications", label: "Notifications", icon: "bell" },
   { href: "/dashboard/profile", label: "Profile", icon: "user" },
 ];

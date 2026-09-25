@@ -141,6 +141,18 @@ describe("Paystack verification guard", () => {
   test("underpayment is rejected", () => {
     expect(validateGatewayTransaction(payment, { ...good, amount: 200000 })).toContain("amount");
   });
+  test("fees passed to the customer are accepted (requested_amount)", () => {
+    expect(validateGatewayTransaction(payment, { ...good, amount: 2030000, requested_amount: 2000000, fees: 30000 })).toEqual([]);
+  });
+  test("fees passed to the customer are accepted (amount - fees)", () => {
+    expect(validateGatewayTransaction(payment, { ...good, amount: 2030000, fees: 30000 })).toEqual([]);
+  });
+  test("overpayment that isn't explained by fees is rejected", () => {
+    expect(validateGatewayTransaction(payment, { ...good, amount: 2500000, requested_amount: 2500000, fees: 30000 })).toContain("amount");
+  });
+  test("underpayment is rejected even if requested_amount claims otherwise", () => {
+    expect(validateGatewayTransaction(payment, { ...good, amount: 1000000, requested_amount: 2000000 })).toContain("amount");
+  });
   test("different currency is rejected", () => {
     expect(validateGatewayTransaction(payment, { ...good, currency: "USD" })).toContain("currency");
   });
@@ -153,5 +165,78 @@ describe("Paystack verification guard", () => {
   test("kobo conversion avoids float errors", () => {
     expect(toSubunit(19.99)).toBe(1999);
     expect(toSubunit(50000)).toBe(5000000);
+  });
+});
+
+import { applyDiscount, evaluateMonthlyReward, monthKey, monthLabel, monthRange, shiftMonth, sniffImageType, ticketDedupeKey } from "../lib/ticket-rewards.js";
+
+describe("Winning-ticket monthly reward", () => {
+  const cfg = { enabled: true, monthlyTarget: 5, percent: 15 };
+  test("below target: no discount", () => {
+    expect(evaluateMonthlyReward(cfg, 4, false)).toMatchObject({ qualified: false, discount: 0 });
+  });
+  test("target met last month: discount available once", () => {
+    expect(evaluateMonthlyReward(cfg, 5, false)).toMatchObject({ qualified: true, available: true, discount: 15 });
+    expect(evaluateMonthlyReward(cfg, 9, true)).toMatchObject({ qualified: true, available: false, discount: 0 });
+  });
+  test("disabled or capped", () => {
+    expect(evaluateMonthlyReward({ ...cfg, enabled: false }, 10, false).discount).toBe(0);
+    expect(evaluateMonthlyReward({ ...cfg, percent: 150 }, 10, false).discount).toBe(90);
+  });
+  test("months follow Lagos time", () => {
+    // 23:30 UTC on 30 Sep is 00:30 on 1 Oct in Lagos.
+    expect(monthKey(new Date("2026-09-30T23:30:00Z"), "Africa/Lagos")).toBe("2026-10");
+    expect(monthKey(new Date("2026-09-30T22:30:00Z"), "Africa/Lagos")).toBe("2026-09");
+    const { start, end } = monthRange("2026-09", "Africa/Lagos");
+    expect(start.toISOString()).toBe("2026-08-31T23:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-09-30T23:00:00.000Z");
+  });
+  test("month arithmetic across years", () => {
+    expect(shiftMonth("2026-01", -1)).toBe("2025-12");
+    expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+    expect(monthLabel("2026-09")).toBe("September 2026");
+  });
+  test("discounted price", () => {
+    expect(applyDiscount(10000, 10)).toBe(9000);
+    expect(applyDiscount(5000, 0)).toBe(5000);
+    expect(applyDiscount(3333, 15)).toBe(2833.05);
+    expect(applyDiscount(10000, 100)).toBe(1000); // capped at 90%
+  });
+  test("duplicate key ignores case and spacing", () => {
+    expect(ticketDedupeKey("SportyBet", "ab 12-cd")).toBe(ticketDedupeKey("sportybet", "AB12CD"));
+  });
+  test("image sniffing", () => {
+    expect(sniffImageType(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]))).toBe("image/jpeg");
+    expect(sniffImageType(Buffer.from("<svg onload=alert(1)></svg>"))).toBeNull();
+  });
+});
+
+import { generateCode, hashCode, hashLinkToken, maskEmail, resendWaitSeconds, safeEqualHex, generateLinkToken } from "../lib/verification-codes.js";
+
+describe("Email verification codes", () => {
+  test("codes are 6 digits", () => {
+    for (let i = 0; i < 200; i++) expect(generateCode()).toMatch(/^\d{6}$/);
+  });
+  test("code hash is keyed and bound to the user", () => {
+    const a = hashCode("u1", "123456", "secret-a");
+    expect(safeEqualHex(a, hashCode("u1", " 123456 ", "secret-a"))).toBe(true);
+    expect(safeEqualHex(a, hashCode("u2", "123456", "secret-a"))).toBe(false);
+    expect(safeEqualHex(a, hashCode("u1", "123456", "secret-b"))).toBe(false);
+    expect(safeEqualHex(a, "abc")).toBe(false);
+  });
+  test("link tokens are long, URL-safe and hashed", () => {
+    const t = generateLinkToken();
+    expect(t).toMatch(/^[A-Za-z0-9_-]{40,}$/);
+    expect(hashLinkToken(t)).toHaveLength(64);
+  });
+  test("resend cooldown", () => {
+    const now = Date.now();
+    expect(resendWaitSeconds(null, now)).toBe(0);
+    expect(resendWaitSeconds(new Date(now - 10_000), now)).toBe(50);
+    expect(resendWaitSeconds(new Date(now - 61_000), now)).toBe(0);
+  });
+  test("masked email", () => {
+    expect(maskEmail("emmanuel@gmail.com")).toBe("em••••••@gmail.com");
+    expect(maskEmail("ab@x.io")).toBe("a•@x.io");
   });
 });

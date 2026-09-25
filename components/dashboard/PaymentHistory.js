@@ -20,7 +20,16 @@ export function PaymentHistory() {
     { key: "reference", label: "Reference", render: (r) => <span className="font-mono text-xs text-slate-700">{r.reference}</span> },
     { key: "planName", label: "Plan", render: (r) => <span className="font-medium text-slate-900">{r.planName}</span> },
     { key: "type", label: "Type", render: (r) => <span className="text-slate-600">{titleCase(r.type || "")}</span> },
-    { key: "amount", label: "Amount", render: (r) => <span className="tabular-nums">{formatCurrency(r.amount, r.currency)}</span> },
+    {
+      key: "amount",
+      label: "Amount",
+      render: (r) => (
+        <span className="tabular-nums">
+          {formatCurrency(r.amount, r.currency)}
+          {r.discountPercent > 0 && <span className="block text-xs text-amber-700">{r.discountPercent}% ticket discount</span>}
+        </span>
+      ),
+    },
     { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
     { key: "date", label: "Date", render: (r) => <span className="text-slate-600">{formatDateTime(r.paidAt || r.createdAt)}</span> },
   ];

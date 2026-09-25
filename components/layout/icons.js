@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Tags,
   Ticket,
+  Trophy,
   User,
   UserCog,
   Users,
@@ -37,6 +38,7 @@ export const ICONS = {
   shield: ShieldCheck,
   userCog: UserCog,
   key: KeyRound,
+  trophy: Trophy,
 };
 
 export function Icon({ name, className }) {

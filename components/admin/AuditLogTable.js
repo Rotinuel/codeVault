@@ -63,7 +63,7 @@ export function AuditLogTable() {
           label="All targets"
           value={params.targetType}
           onChange={(v) => list.setFilter("targetType", v)}
-          options={["User", "BetCode", "Category", "SubscriptionPlan", "Payment", "Settings", "Broadcast"].map((t) => ({ value: t, label: t }))}
+          options={["User", "BetCode", "Category", "SubscriptionPlan", "Payment", "Settings", "Broadcast", "WinningTicket"].map((t) => ({ value: t, label: t }))}
         />
       </Toolbar>
       <DataTable columns={columns} rows={data?.logs} loading={list.loading} error={list.error} onRetry={list.reload} sort={params.sort} order={params.order} onSort={list.toggleSort} />

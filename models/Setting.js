@@ -50,6 +50,15 @@ const SettingSchema = new Schema(
       defaultExpiryHours: { type: Number, min: 0, max: 24 * 60, default: 0 },
       upcomingWindowHours: { type: Number, min: 1, max: 24 * 30, default: 48 },
     },
+    // Winning-ticket rewards (Super Admin only): a client with at least
+    // `monthlyTarget` approved uploads in a month gets `percent`% off ONE
+    // payment in the following month.
+    ticketRewards: {
+      enabled: { type: Boolean, default: true },
+      showcaseEnabled: { type: Boolean, default: true },
+      monthlyTarget: { type: Number, min: 1, max: 100, default: 5 },
+      percent: { type: Number, min: 1, max: 90, default: 10 },
+    },
     adminPermissions: { type: [String], default: () => [...DEFAULT_ADMIN_PERMISSIONS] },
     jobsLastRunAt: { type: Date, default: null },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },

@@ -7,7 +7,7 @@ import { escapeRegex, listQuerySchema } from "@/lib/validation";
 
 const schema = listQuerySchema(["createdAt", "action"], {
   action: z.string().regex(/^[A-Z_]{3,60}$/).optional(),
-  targetType: z.enum(["User", "BetCode", "Category", "SubscriptionPlan", "Payment", "Settings", "Broadcast"]).optional(),
+  targetType: z.enum(["User", "BetCode", "Category", "SubscriptionPlan", "Payment", "Settings", "Broadcast", "WinningTicket"]).optional(),
 });
 
 export const GET = withApi(async (request) => {

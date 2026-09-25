@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CircleCheckBig, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client/api";
 import { Button } from "@/components/ui/Button";
-import { Checkbox, Field, Input } from "@/components/ui/Form";
+import { Field, Input } from "@/components/ui/Form";
+import { TermsModal, TermsStatus } from "./TermsGate";
 
 function PasswordField({ id, label, value, onChange, error, autoComplete, hint }) {
   const [show, setShow] = useState(false);
@@ -51,7 +52,8 @@ export function LoginForm({ next }) {
     try {
       const n = safeNext(next);
       const data = await apiFetch(`/api/auth/login${n ? `?next=${encodeURIComponent(n)}` : ""}`, { method: "POST", body: { email, password } });
-      toast.success(`Welcome back, ${data.user.name.split(" ")[0]}!`);
+      if (data.needsVerification) toast.message("Please verify your email to continue.");
+      else toast.success(`Welcome back, ${data.user.name.split(" ")[0]}!`);
       router.replace(data.redirectTo || "/dashboard");
       router.refresh();
     } catch (err) {
@@ -85,21 +87,34 @@ export function LoginForm({ next }) {
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({ platformName = "CodeVault" }) {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", acceptTerms: false });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // The terms open as soon as the sign-up page loads.
+  useEffect(() => {
+    const t = setTimeout(() => setTermsOpen(true), 250);
+    return () => clearTimeout(t);
+  }, []);
 
   async function submit(e) {
     e.preventDefault();
+    if (!form.acceptTerms) {
+      setErrors({ acceptTerms: "Please read and accept the terms first" });
+      setTermsOpen(true);
+      return;
+    }
     setLoading(true);
     setErrors({});
     try {
       const data = await apiFetch("/api/auth/register", { method: "POST", body: form });
-      toast.success("Account created! Choose a plan to get started.");
-      router.replace(data.redirectTo || "/dashboard");
+      if (data.emailSent === false) toast.warning("Account created, but we couldn't send the email. Tap \"Resend\" on the next screen.");
+      else toast.success("Account created! Check your email for a 6-digit code.");
+      router.replace(data.redirectTo || "/verify-email");
       router.refresh();
     } catch (err) {
       setErrors(err.errors || {});
@@ -120,26 +135,20 @@ export function RegisterForm() {
         <Input id="phone" type="tel" placeholder="+234 801 234 5678" value={form.phone} onChange={(e) => set("phone")(e.target.value)} error={errors.phone} autoComplete="tel" required />
       </Field>
       <PasswordField id="password" label="Password" value={form.password} onChange={set("password")} error={errors.password} autoComplete="new-password" hint="At least 8 characters, with letters and numbers." />
-      <div>
-        <Checkbox
-          id="terms"
-          checked={form.acceptTerms}
-          onChange={set("acceptTerms")}
-          label={
-            <>
-              I am 18 or older and agree to the{" "}
-              <Link href="/terms" className="font-medium text-brand-700 hover:underline" target="_blank">
-                terms & responsible gambling policy
-              </Link>
-              .
-            </>
-          }
-        />
-        {errors.acceptTerms && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.acceptTerms}</p>}
-      </div>
-      <Button type="submit" className="w-full" size="lg" loading={loading}>
-        Create account
+      <TermsStatus accepted={form.acceptTerms} onOpen={() => setTermsOpen(true)} error={errors.acceptTerms} />
+      <Button type="submit" className="w-full" size="lg" loading={loading} disabled={!form.acceptTerms}>
+        {form.acceptTerms ? "Create account" : "Accept the terms to continue"}
       </Button>
+      <TermsModal
+        open={termsOpen}
+        platformName={platformName}
+        onClose={() => setTermsOpen(false)}
+        onAccept={() => {
+          set("acceptTerms")(true);
+          setErrors((x) => ({ ...x, acceptTerms: undefined }));
+          setTermsOpen(false);
+        }}
+      />
       <p className="text-center text-sm text-slate-500">
         Already have an account?{" "}
         <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">

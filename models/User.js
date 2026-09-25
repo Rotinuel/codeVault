@@ -37,6 +37,29 @@ const UserSchema = new Schema(
     notificationPrefs: { type: NotificationPrefsSchema, default: () => ({}) },
     // Incremented to invalidate every issued JWT (password change, role change, ban, logout-all).
     tokenVersion: { type: Number, default: 0, select: false },
+    // Email verification. `emailVerified` is only ever set to false for accounts
+    // created after verification was introduced, so older accounts (field absent)
+    // and staff keep working. Code and link are stored as hashes only.
+    emailVerified: { type: Boolean },
+    emailVerifiedAt: { type: Date, default: null },
+    emailVerification: {
+      type: new Schema(
+        {
+          codeHash: { type: String, default: null },
+          codeExpiresAt: { type: Date, default: null },
+          attempts: { type: Number, default: 0 },
+          tokenHash: { type: String, default: null },
+          tokenExpiresAt: { type: Date, default: null },
+          sentAt: { type: Date, default: null },
+          sendCount: { type: Number, default: 0 },
+        },
+        { _id: false }
+      ),
+      select: false,
+      default: undefined,
+    },
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, default: null },
     resetPasswordTokenHash: { type: String, select: false, default: null },
     resetPasswordExpires: { type: Date, select: false, default: null },
     lastLoginAt: { type: Date, default: null },
@@ -47,6 +70,7 @@ const UserSchema = new Schema(
 );
 
 UserSchema.index({ createdAt: -1 });
+UserSchema.index({ "emailVerification.tokenHash": 1 }, { sparse: true });
 UserSchema.index({ name: "text", email: "text", phone: "text" });
 
 UserSchema.set("toJSON", {
@@ -55,6 +79,7 @@ UserSchema.set("toJSON", {
     delete ret.tokenVersion;
     delete ret.resetPasswordTokenHash;
     delete ret.resetPasswordExpires;
+    delete ret.emailVerification;
     delete ret.__v;
     return ret;
   },

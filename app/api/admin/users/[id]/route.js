@@ -74,9 +74,15 @@ export const PATCH = withApi(async (request, context) => {
     changes.role = { from: target.role, to: body.role };
     revokeSessions = true;
   }
+  if (body.emailVerified === true && target.emailVerified === false) {
+    $set.emailVerified = true;
+    $set.emailVerifiedAt = new Date();
+    changes.emailVerified = { from: false, to: true, manual: true };
+  }
   if (!Object.keys($set).length) return ok({ user: adminUser(target) }, { message: "No changes" });
 
   const update = { $set };
+  if ($set.emailVerified) update.$unset = { emailVerification: 1 };
   if (revokeSessions) update.$inc = { tokenVersion: 1 };
   const updated = await User.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true }).lean();
 

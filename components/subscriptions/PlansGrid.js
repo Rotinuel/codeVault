@@ -18,7 +18,8 @@ function actionFor(plan, current, isStaff) {
   return { label: "Included in your plan", disabled: true };
 }
 
-export function PlansGrid({ plans, current, isStaff, highlightRenew = false }) {
+export function PlansGrid({ plans, current, isStaff, highlightRenew = false, discountPercent = 0 }) {
+  const priceFor = (plan) => (discountPercent > 0 && plan.price > 0 ? Math.round(plan.price * (100 - discountPercent)) / 100 : plan.price);
   const router = useRouter();
   const [pending, setPending] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -57,6 +58,7 @@ export function PlansGrid({ plans, current, isStaff, highlightRenew = false }) {
             <PlanCard
               key={plan.id}
               plan={plan}
+              discountPercent={discountPercent}
               current={isCurrent}
               highlight={highlightRenew ? isCurrent : undefined}
               action={
@@ -80,7 +82,7 @@ export function PlansGrid({ plans, current, isStaff, highlightRenew = false }) {
         onClose={() => setConfirm(null)}
         tone="primary"
         title={confirm ? `${confirm.action.kind === "UPGRADE" ? "Upgrade" : "Switch"} to ${confirm.plan.name}?` : ""}
-        confirmLabel={confirm ? `Pay ${formatCurrency(confirm.plan.price, confirm.plan.currency)}` : "Continue"}
+        confirmLabel={confirm ? `Pay ${formatCurrency(priceFor(confirm.plan), confirm.plan.currency)}` : "Continue"}
         loading={Boolean(confirm && pending === confirm.plan.id)}
         onConfirm={() => checkout(confirm.plan, confirm.action)}
         description={

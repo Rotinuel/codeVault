@@ -8,6 +8,9 @@ import { PageHeader, Card, CardHeader, StatusBadge, EmptyState } from "@/compone
 import { SubscriptionPanel } from "@/components/subscriptions/SubscriptionPanel";
 import { PlansGrid } from "@/components/subscriptions/PlansGrid";
 import { formatCurrency, formatDate, titleCase } from "@/lib/utils";
+import { getRewardStatus } from "@/lib/services/winning-tickets";
+import { RewardProgress } from "@/components/tickets/RewardProgress";
+import { ButtonLink } from "@/components/ui/Button";
 
 export const metadata = { title: "Subscription" };
 
@@ -15,12 +18,14 @@ export default async function SubscriptionPage({ searchParams }) {
   const sp = await searchParams;
   const user = await requireUserPage();
   await connectDB();
-  const [ctx, plans, history, levelNames] = await Promise.all([
+  const [ctx, plans, history, levelNames, reward] = await Promise.all([
     getAccessContext(user),
     SubscriptionPlan.find({ isActive: true }).sort({ sortOrder: 1, accessLevel: 1, price: 1 }).lean(),
     Subscription.find({ user: user._id }).sort({ createdAt: -1 }).limit(10).lean(),
     getLevelNames(),
+    getRewardStatus(user._id).catch(() => null),
   ]);
+  const discountPercent = !ctx.isStaff && reward?.enabled ? reward.discount : 0;
   const current = serializeSubscription(ctx.subscription);
   const maxLevel = Math.max(0, ...plans.map((p) => p.accessLevel));
 
@@ -39,15 +44,29 @@ export default async function SubscriptionPage({ searchParams }) {
         <h2 id="plans-heading" className="text-lg font-semibold text-slate-900">
           Available plans
         </h2>
-        <p className="mb-6 text-sm text-slate-500">Higher plans include everything in the plans below them.</p>
+        <p className="mb-6 text-sm text-slate-500">
+          Higher plans include everything in the plans below them.
+          {discountPercent ? ` Your ${discountPercent}% winning-ticket discount (${reward.lastMonth.label} target) is applied to the prices below, for one payment.` : ""}
+        </p>
         {plans.length ? (
-          <PlansGrid plans={plans.map(serializePlan)} current={current} isStaff={ctx.isStaff} highlightRenew={sp?.renew === "1"} />
+          <PlansGrid plans={plans.map(serializePlan)} current={current} isStaff={ctx.isStaff} highlightRenew={sp?.renew === "1"} discountPercent={discountPercent} />
         ) : (
           <Card>
             <EmptyState title="No plans available" description="Plans will appear here once the administrator publishes them." />
           </Card>
         )}
       </section>
+
+      {!ctx.isStaff && reward?.enabled && (
+        <section className="mt-10" aria-label="Winning ticket rewards">
+          <RewardProgress reward={reward} />
+          <div className="mt-3 flex justify-end">
+            <ButtonLink href="/dashboard/winning-tickets" variant="secondary" size="sm">
+              Upload a winning ticket
+            </ButtonLink>
+          </div>
+        </section>
+      )}
 
       <Card className="mt-10">
         <CardHeader title="Subscription history" description="Your last 10 subscription periods." />
